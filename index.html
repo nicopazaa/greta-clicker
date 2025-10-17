@@ -40,6 +40,7 @@
       box-shadow:0 8px 20px rgba(0,0,0,.35);
     }
     button.danger{ background:linear-gradient(180deg,#fecaca,#ef4444); color:#230707 }
+    #greta{ cursor:pointer; }
   </style>
 </head>
 <body>
@@ -101,13 +102,20 @@
     resizeCanvas();
     new ResizeObserver(resizeCanvas).observe($stage);
 
-    // ---------- Tap handling (robust) ----------
+    // ---------- Tap handling (bildet er knappen) ----------
     let lastFire = 0;
-    function fireTap(){ const n = performance.now(); if (n - lastFire < 200) return; lastFire = n; onTap(); }
-    $tap.addEventListener("pointerdown", fireTap, { passive: true });
-    $tap.addEventListener("touchstart", fireTap, { passive: true });
-    $tap.addEventListener("click", fireTap, { passive: true });
+    function fireTap(){ const n = performance.now(); if (n - lastFire < 120) return; lastFire = n; onTap(); }
 
+    // Lytt direkte på bildet
+    if ($img) {
+      $img.addEventListener("pointerdown", fireTap, { passive: true });
+      $img.addEventListener("touchstart", fireTap, { passive: true });
+      $img.addEventListener("click", fireTap, { passive: true });
+    }
+    // Fallback på wrapper
+    ["pointerdown","touchstart","click"].forEach(t=> $tap.addEventListener(t, fireTap, { passive:true }));
+
+    // iOS dbl-tap zoom guard
     let lastTouch = 0;
     document.addEventListener("touchend",(e)=>{
       const now = Date.now();
@@ -117,8 +125,10 @@
 
     function onTap(){
       updateScore(1);
-      $tap.style.transform = "translateY(1px) scale(0.99)";
-      setTimeout(()=>{ $tap.style.transform = ""; }, 60);
+      if ($img && $img.style) {
+        $img.style.transform = "translateY(1px) scale(0.99)";
+        setTimeout(()=>{ $img.style.transform = ""; }, 60);
+      }
       const {x,y} = computeExhaustOrigin();
       emitBurst(x, y);
       try { navigator.vibrate && navigator.vibrate(8); } catch {}
@@ -139,7 +149,7 @@
     }
 
     function computeExhaustOrigin(){
-      const holder = $img && $img.isConnected ? $img : document.getElementById("ph");
+      const holder = ($img && $img.isConnected) ? $img : document.getElementById("ph");
       const r = holder.getBoundingClientRect();
       const s = $stage.getBoundingClientRect();
       const x = (r.right - s.left) + Math.min(24, r.width*0.06);
